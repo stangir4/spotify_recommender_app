@@ -101,3 +101,30 @@ else:
 st.markdown("---")
 st.markdown("**Notes:** This app uses a lightweight rule-based recommender for the demo. "
             "You can replace the logic with a model-based predictor using the saved `kmeans_model.joblib` or other artifacts.")
+
+def map_input_to_cluster(time_slot, mood, genre, cluster_profiles):
+    # simple string overlap scoring: count matching tokens between user input and each cluster's top features
+    user_tokens = set()
+    user_tokens.update([time_slot.lower(), mood.lower()])
+    user_tokens.update([g.strip().lower() for g in genre.split(',')])
+    best_k, best_score = None, -1
+    for k, feats in cluster_profiles.items():
+        # feats may be list of feature names or dict->scores
+        feat_tokens = set([str(f).lower() for f in (feats if isinstance(feats, list) else feats.keys())])
+        score = len(user_tokens & feat_tokens)
+        if score > best_score:
+            best_score = score
+            best_k = k
+    return best_k, best_score
+
+# Usage example (call after user inputs):
+if cluster_profiles:
+    clust, sc = map_input_to_cluster(time_slot, mood, genre, cluster_profiles)
+    if clust is not None and sc>0:
+        st.success(f"Input maps to cluster {clust} (score {sc}). You will see recommendations aligned to this cluster's preferences.")
+
+st.write("Recommendation rationale:")
+st.write(f"- Matched rule: time slot `{time_slot}` + mood `{mood}`")
+if cluster_profiles and clust:
+    st.write(f"- Cluster-based rationale: cluster {clust} top features: {cluster_profiles.get(str(clust))[:5]}")
+
