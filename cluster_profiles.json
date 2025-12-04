@@ -1,0 +1,38 @@
+{
+    "0": [
+        "Age_num",
+        "preferred_listening_content__Music",
+        "spotify_subscription_plan__Free (ad-supported)",
+        "Gender__Female",
+        "music_time_slot__Night",
+        "spotify_listening_device__Smartphone",
+        "pod_variety_satisfaction__Ok",
+        "music__Melody",
+        "preffered_premium_plan__Unknown",
+        "pod_lis_frequency__Rarely"
+    ],
+    "1": [
+        "Age_num",
+        "spotify_subscription_plan__Free (ad-supported)",
+        "preferred_listening_content__Podcast",
+        "Gender__Female",
+        "pod_lis_frequency__Once a week",
+        "pod_variety_satisfaction__Satisfied",
+        "preferred_listening_content__Music",
+        "preffered_pod_format__Interview",
+        "music__Melody",
+        "spotify_usage_period__6 months to 1 year"
+    ],
+    "2": [
+        "Age_num",
+        "spotify_subscription_plan__Free (ad-supported)",
+        "Gender__Female",
+        "music_recc_rating__3",
+        "preferred_listening_content__Music",
+        "preferred_listening_content__Podcast",
+        "pod_variety_satisfaction__Ok",
+        "music_time_slot__Afternoon",
+        "spotify_usage_period__6 months to 1 year",
+        "pod_host_preference__Both"
+    ]
+}
