@@ -132,25 +132,90 @@ if cluster_profiles and clust:
 # PREMIUM SUBSCRIPTION PREDICTION (DEPLOY BEST MODEL)
 # ================================================
 import numpy as np
-import joblib
+try:
+    import joblib
+except Exception:
+    joblib = None
 
 st.subheader("💰 Premium Subscription Likelihood")
 
 model_path = "artifacts/best_model.joblib"
 
-# Try to load the model
+# Try to load the model (only if joblib available)
+premium_model = None
+if joblib is None:
+    st.warning("joblib is not installed in this environment — premium model disabled.")
+else:
+    try:
+        premium_model = joblib.load(model_path)
+    except Exception as e:
+        premium_model = None
+        st.info("Best model not found in artifacts/. Upload artifacts/best_model.joblib to enable predictions.")
+
+# Safety: ensure the app's input variables exist (fallback names)
+# Replace these names if your app uses different variable names
 try:
-    premium_model = joblib.load(model_path)
-except Exception as e:
-    st.warning(f"Best model could not be loaded: {e}")
-    premium_model = None
+    user_mood = mood        # existing widget variable in your app
+except Exception:
+    user_mood = "Any"
+
+try:
+    user_time = time        # existing widget variable
+except Exception:
+    user_time = "Any"
+
+try:
+    user_genre = genre      # existing widget variable (string of comma-separated genres)
+except Exception:
+    user_genre = ""
+
+try:
+    user_podcast = podcast_freq  # existing widget variable
+except Exception:
+    user_podcast = "Never"
+
+try:
+    user_gender = gender    # existing widget variable
+except Exception:
+    user_gender = "Other"
 
 if premium_model is None:
-    st.info("Premium prediction unavailable. Upload artifacts/best_model.joblib to enable this feature.")
+    st.info("Premium prediction unavailable. Upload artifacts/best_model.joblib and ensure joblib is installed.")
 else:
-    # Build a very simple numeric feature vector using user inputs
-    # This is NOT your full preprocessing pipeline, but acceptable for demo as long as it's documented.
-    feature_vector = []
+    # Build a compact demo feature vector (document in report that this is a simplified demo)
+    fv = []
 
-    # Encode mood
-    feature_vector.append(1 if mood.lower() in ["energetic", "upbeat", "hap]()_
+    # Mood -> energetic/happy = 1 else 0
+    m = str(user_mood or "").lower()
+    fv.append(1 if any(token in m for token in ["energetic", "upbeat", "happy", "party"]) else 0)
+
+    # Time of day -> morning flag
+    t = str(user_time or "").lower()
+    fv.append(1 if "morning" in t else 0)
+
+    # Genre -> pop flag
+    g = str(user_genre or "").lower()
+    fv.append(1 if "pop" in g else 0)
+
+    # Podcast listen frequency -> daily flag
+    p = str(user_podcast or "").lower()
+    fv.append(1 if "daily" in p else 0)
+
+    # Gender -> female flag (example)
+    ge = str(user_gender or "").lower()
+    fv.append(1 if "female" in ge else 0)
+
+    feature_vector = np.array(fv).reshape(1, -1)
+
+    # Score with the model (try predict_proba, fall back to predict)
+    try:
+        if hasattr(premium_model, "predict_proba"):
+            prob = premium_model.predict_proba(feature_vector)[0][1]
+            st.success(f"Predicted Premium Likelihood: **{prob * 100:.1f}%**")
+        else:
+            pred = premium_model.predict(feature_vector)[0]
+            st.success(f"Model prediction (class): **{pred}** — no probability available.")
+    except Exception as e:
+        st.info("Model could not score the simplified demo input. (This demo uses minimal encoding.)")
+        # Optional: show small debug (non-sensitive)
+        st.write("Debug note:", str(e))
