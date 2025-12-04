@@ -4,4 +4,3 @@ numpy
 scikit-learn
 joblib
 xgboost
-artifacts/best_model.joblib
