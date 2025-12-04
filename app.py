@@ -128,3 +128,29 @@ st.write(f"- Matched rule: time slot `{time_slot}` + mood `{mood}`")
 if cluster_profiles and clust:
     st.write(f"- Cluster-based rationale: cluster {clust} top features: {cluster_profiles.get(str(clust))[:5]}")
 
+# ================================================
+# PREMIUM SUBSCRIPTION PREDICTION (DEPLOY BEST MODEL)
+# ================================================
+import numpy as np
+import joblib
+
+st.subheader("💰 Premium Subscription Likelihood")
+
+model_path = "artifacts/best_model.joblib"
+
+# Try to load the model
+try:
+    premium_model = joblib.load(model_path)
+except Exception as e:
+    st.warning(f"Best model could not be loaded: {e}")
+    premium_model = None
+
+if premium_model is None:
+    st.info("Premium prediction unavailable. Upload artifacts/best_model.joblib to enable this feature.")
+else:
+    # Build a very simple numeric feature vector using user inputs
+    # This is NOT your full preprocessing pipeline, but acceptable for demo as long as it's documented.
+    feature_vector = []
+
+    # Encode mood
+    feature_vector.append(1 if mood.lower() in ["energetic", "upbeat", "hap]()_
