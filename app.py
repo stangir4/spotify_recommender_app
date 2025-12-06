@@ -1,90 +1,58 @@
-# Robust loader for models + cluster profiles (drop into streamlit_app.py)
-import os, json, joblib, re, streamlit as st, logging
-logger = logging.getLogger("loader")
+# --- START: artifact compatibility shim (paste at very top of streamlit_app.py) ---
+import os, shutil, glob, streamlit as st
 
-st.sidebar.write("⚙️ Debug: checking artifact files (for loader)")
-
-# helper: find file by candidate names or patterns
-def find_file(candidates):
-    for c in candidates:
+def ensure_artifact(src_candidates, dest):
+    """If dest doesn't exist, check candidate files and copy first match to dest."""
+    if os.path.exists(dest):
+        return dest
+    for c in src_candidates:
+        # test exact path first
         if os.path.exists(c):
-            return c
-    # try glob-like search
-    for root, dirs, files in os.walk("."):
-        for f in files:
-            full = os.path.join(root, f)
-            for c in candidates:
-                # loosen match: ignore path, match suffix or substring
-                if f.lower() == os.path.basename(c).lower() or c.lower() in f.lower():
-                    return full
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            shutil.copy2(c, dest)
+            st.sidebar.write(f"Copied {c} -> {dest}")
+            return dest
+    # try glob search for loose matches (e.g., files in repo root)
+    for pattern in src_candidates:
+        for match in glob.glob(f"**/*{os.path.basename(pattern)}", recursive=True):
+            if os.path.exists(match):
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                shutil.copy2(match, dest)
+                st.sidebar.write(f"Copied {match} -> {dest}")
+                return dest
     return None
 
-# Candidate model names you might have committed
-model_candidates = [
-    "artifacts/best_model.joblib",
-    "artifacts/kmeans_model.joblib",
-    "artifacts/kmeans_model.pkl",
-    "kmeans_model.joblib",
-    "best_model.joblib",
-    "logistic_baseline.joblib",
-    "logistic_baseline.pkl"
+# ensure artifacts directory exists and expected filenames are present
+os.makedirs("artifacts", exist_ok=True)
+
+# model: app expects artifacts/best_model.joblib
+model_srcs = [
+    "kmeans_model.joblib", "kmeans_model.pkl", "logistic_baseline.joblib",
+    "best_model.joblib", "./kmeans_model.joblib", "./artifacts/kmeans_model.joblib"
 ]
+ensure_artifact(model_srcs, "artifacts/best_model.joblib")
 
-model_path = find_file(model_candidates)
-st.sidebar.write("Model path found:", model_path)
+# cluster profiles: app expects artifacts/cluster_profiles.json
+profile_srcs = ["cluster_profiles.json", "cluster_profiles.js", "./cluster_profiles.json", "./artifacts/cluster_profiles.js"]
+copied = ensure_artifact(profile_srcs, "artifacts/cluster_profiles.json")
 
-def safe_load_model(path):
-    if not path:
-        st.error("Model not found. Searched common filenames. See repo files in sidebar.")
-        return None
+# if we copied a .js as JSON name, try to sanitize simple 'const x = {...}' wrappers:
+if copied and copied.endswith(".json") and os.path.exists(copied):
     try:
-        m = joblib.load(path)
-        st.success(f"Model loaded from {path}")
-        return m
-    except Exception as e:
-        st.error(f"Failed to load model at {path}: {e}")
-        logger.exception(e)
-        return None
-
-model = safe_load_model(model_path)
-
-# Cluster profiles detection (JSON or JS wrapper)
-profile_candidates = [
-    "artifacts/cluster_profiles.json",
-    "cluster_profiles.json",
-    "artifacts/cluster_profiles.js",
-    "cluster_profiles.js"
-]
-profiles_path = find_file(profile_candidates)
-st.sidebar.write("Profiles path found:", profiles_path)
-
-def safe_load_profiles(path):
-    if not path:
-        st.info("No cluster_profiles file found in repo.")
-        return None
-    try:
-        if path.endswith(".json"):
-            with open(path, "r") as f:
-                return json.load(f)
-        else:
-            # attempt to extract JSON object from a .js wrapper
-            text = open(path, "r", encoding="utf-8").read()
-            # heuristics: find first '{' and last '}' and parse
+        import json, re
+        text = open(copied, "r", encoding="utf-8").read()
+        # if file contains 'const' or 'module.exports' try to extract {...}
+        if not text.strip().startswith("{"):
             m = re.search(r"(\{.*\})", text, flags=re.S)
             if m:
                 obj = m.group(1)
-                return json.loads(obj)
-            else:
-                st.warning("Found JS profiles file but couldn't extract JSON automatically.")
-                return None
+                with open(copied, "w", encoding="utf-8") as f:
+                    f.write(obj)
+                st.sidebar.write("Sanitized JS wrapper into JSON for cluster_profiles.")
     except Exception as e:
-        st.error(f"Failed to parse profiles at {path}: {e}")
-        logger.exception(e)
-        return None
+        st.sidebar.write("Could not sanitize cluster_profiles: " + str(e))
 
-profiles = safe_load_profiles(profiles_path)
-if profiles:
-    st.sidebar.write("Loaded cluster profiles keys:", list(profiles.keys())[:10])
+# --- END shim ---
 
 
 import streamlit as st
