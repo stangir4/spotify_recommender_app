@@ -1,3 +1,26 @@
+# diagnostic: show repository files
+import os, streamlit as st, pathlib
+
+st.sidebar.write("⚙️ Debug: repository contents (first 200 entries)")
+rows = []
+count = 0
+for root, dirs, files in os.walk("."):
+    for f in files:
+        p = os.path.join(root, f)
+        rows.append(p)
+        count += 1
+        if count > 200:
+            break
+    if count > 200:
+        break
+
+# show a small sample & explicit checks
+st.sidebar.write(rows[:80])
+st.sidebar.write("Exists artifacts dir:", os.path.exists("artifacts"))
+st.sidebar.write("Exists artifacts/best_model.joblib:", os.path.exists("artifacts/best_model.joblib"))
+st.sidebar.write("Exists artifacts/cluster_profiles.json:", os.path.exists("artifacts/cluster_profiles.json"))
+
+
 import streamlit as st
 import os
 
