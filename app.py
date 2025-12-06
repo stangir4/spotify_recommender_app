@@ -1,24 +1,90 @@
-# diagnostic: show repository files
-import os, streamlit as st, pathlib
+# Robust loader for models + cluster profiles (drop into streamlit_app.py)
+import os, json, joblib, re, streamlit as st, logging
+logger = logging.getLogger("loader")
 
-st.sidebar.write("⚙️ Debug: repository contents (first 200 entries)")
-rows = []
-count = 0
-for root, dirs, files in os.walk("."):
-    for f in files:
-        p = os.path.join(root, f)
-        rows.append(p)
-        count += 1
-        if count > 200:
-            break
-    if count > 200:
-        break
+st.sidebar.write("⚙️ Debug: checking artifact files (for loader)")
 
-# show a small sample & explicit checks
-st.sidebar.write(rows[:80])
-st.sidebar.write("Exists artifacts dir:", os.path.exists("artifacts"))
-st.sidebar.write("Exists artifacts/best_model.joblib:", os.path.exists("artifacts/best_model.joblib"))
-st.sidebar.write("Exists artifacts/cluster_profiles.json:", os.path.exists("artifacts/cluster_profiles.json"))
+# helper: find file by candidate names or patterns
+def find_file(candidates):
+    for c in candidates:
+        if os.path.exists(c):
+            return c
+    # try glob-like search
+    for root, dirs, files in os.walk("."):
+        for f in files:
+            full = os.path.join(root, f)
+            for c in candidates:
+                # loosen match: ignore path, match suffix or substring
+                if f.lower() == os.path.basename(c).lower() or c.lower() in f.lower():
+                    return full
+    return None
+
+# Candidate model names you might have committed
+model_candidates = [
+    "artifacts/best_model.joblib",
+    "artifacts/kmeans_model.joblib",
+    "artifacts/kmeans_model.pkl",
+    "kmeans_model.joblib",
+    "best_model.joblib",
+    "logistic_baseline.joblib",
+    "logistic_baseline.pkl"
+]
+
+model_path = find_file(model_candidates)
+st.sidebar.write("Model path found:", model_path)
+
+def safe_load_model(path):
+    if not path:
+        st.error("Model not found. Searched common filenames. See repo files in sidebar.")
+        return None
+    try:
+        m = joblib.load(path)
+        st.success(f"Model loaded from {path}")
+        return m
+    except Exception as e:
+        st.error(f"Failed to load model at {path}: {e}")
+        logger.exception(e)
+        return None
+
+model = safe_load_model(model_path)
+
+# Cluster profiles detection (JSON or JS wrapper)
+profile_candidates = [
+    "artifacts/cluster_profiles.json",
+    "cluster_profiles.json",
+    "artifacts/cluster_profiles.js",
+    "cluster_profiles.js"
+]
+profiles_path = find_file(profile_candidates)
+st.sidebar.write("Profiles path found:", profiles_path)
+
+def safe_load_profiles(path):
+    if not path:
+        st.info("No cluster_profiles file found in repo.")
+        return None
+    try:
+        if path.endswith(".json"):
+            with open(path, "r") as f:
+                return json.load(f)
+        else:
+            # attempt to extract JSON object from a .js wrapper
+            text = open(path, "r", encoding="utf-8").read()
+            # heuristics: find first '{' and last '}' and parse
+            m = re.search(r"(\{.*\})", text, flags=re.S)
+            if m:
+                obj = m.group(1)
+                return json.loads(obj)
+            else:
+                st.warning("Found JS profiles file but couldn't extract JSON automatically.")
+                return None
+    except Exception as e:
+        st.error(f"Failed to parse profiles at {path}: {e}")
+        logger.exception(e)
+        return None
+
+profiles = safe_load_profiles(profiles_path)
+if profiles:
+    st.sidebar.write("Loaded cluster profiles keys:", list(profiles.keys())[:10])
 
 
 import streamlit as st
