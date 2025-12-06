@@ -1,3 +1,14 @@
+import streamlit as st
+import os
+
+# Load Databricks secrets from Streamlit Cloud
+os.environ["DATABRICKS_HOST"] = st.secrets["DATABRICKS_HOST"]
+os.environ["DATABRICKS_TOKEN"] = st.secrets["DATABRICKS_TOKEN"]
+
+# Temporary debug check
+st.write("Databricks host loaded:", os.environ.get("DATABRICKS_HOST"))
+
+
 # app.py
 # Spotify behavior-based recommender (lightweight, rule-based + cluster profile viewer)
 # Designed to run on Streamlit using the repository artifacts folder.
